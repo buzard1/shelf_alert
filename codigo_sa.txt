@@ -1,0 +1,95 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <Servo.h>  // Biblioteca do servo
+
+// ==== LCD I2C ====
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// ==== Sensor Ultrassônico ====
+int ECHO = 7;
+int TRIG = 8;
+
+// ==== Buzzer ====
+int BUZZER = 6;
+
+// ==== Servo ====
+Servo servo_motor;
+int SERVO_PIN = 9;  // Pino do servo
+
+// ==== Variáveis ====
+long duracao = 0;
+long distancia = 0;
+
+void setup() {
+
+  // LCD
+  lcd.init();       // Inicializa o LCD
+  lcd.backlight();  // Liga a luz de fundo
+  lcd.setCursor(0, 0);
+  lcd.print("Monitorando...");
+
+  // Sensor ultrassônico
+  pinMode(ECHO, INPUT);
+  pinMode(TRIG, OUTPUT);
+
+  // Buzzer
+  pinMode(BUZZER, OUTPUT);
+  digitalWrite(BUZZER, LOW);
+
+  // Servo
+  servo_motor.attach(SERVO_PIN);
+  servo_motor.write(0);  // Posição inicial
+
+  Serial.begin(9600);
+  delay(2000);
+  lcd.clear();
+}
+
+void loop() {
+
+  // Dispara o pulso ultrassônico
+  digitalWrite(TRIG, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG, LOW);
+
+  duracao = pulseIn(ECHO, HIGH);
+  distancia = duracao / 58;
+
+  Serial.print("Distancia em cm: ");
+  Serial.println(distancia);
+
+  // Atualiza o LCD
+  lcd.clear();
+  lcd.setCursor(0, 0);
+
+  if (distancia > 100 || distancia == 0) {
+
+    // === Estoque vazio ===
+    lcd.print("Estoque vazio!");
+    lcd.setCursor(0, 1);
+    lcd.print("Repor produtos");
+
+    tone(BUZZER, 1000);
+    delay(200);
+    noTone(BUZZER);
+    delay(200);
+
+    servo_motor.write(90);
+
+  } else {
+
+    // === Estoque presente ===
+    lcd.print("Possui estoque");
+    lcd.setCursor(0, 1);
+
+    lcd.print(distancia);
+    lcd.print(" cm");
+
+    noTone(BUZZER);
+    servo_motor.write(0);
+  }
+
+  delay(400);
+}
