@@ -1,0 +1,142 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <Servo.h>
+
+// ==== LCD I2C ====
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// ==== Sensores Ultrassônicos ====
+// Sensor 1
+int TRIG1 = 8;
+int ECHO1 = 7;
+
+// Sensor 2
+int TRIG2 = 5;
+int ECHO2 = 4;
+
+// Sensor 3
+int TRIG3 = 3;
+int ECHO3 = 2;
+
+// ==== Buzzer ====
+int BUZZER = 6;
+
+// ==== Servo ====
+Servo servo_motor;
+int SERVO_PIN = 9;
+
+// ==== Variáveis ====
+
+
+// ---- Função para medir distância ----
+long medirDistancia(int TRIG, int ECHO) {
+
+  digitalWrite(TRIG, LOW);
+  delayMicroseconds(2);
+
+  digitalWrite(TRIG, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG, LOW);
+
+  long tempo = pulseIn(ECHO, HIGH, 30000);
+  long dist = tempo / 58;
+
+  if (tempo == 0) return 999; // sem leitura
+
+  return dist;
+}
+
+
+void setup() {
+
+  // LCD
+  lcd.init();
+  lcd.backlight();
+  lcd.setCursor(0, 0);
+  lcd.print("Iniciando...");
+
+  // Sensores
+  pinMode(TRIG1, OUTPUT);
+  pinMode(ECHO1, INPUT);
+
+  pinMode(TRIG2, OUTPUT);
+  pinMode(ECHO2, INPUT);
+
+  pinMode(TRIG3, OUTPUT);
+  pinMode(ECHO3, INPUT);
+
+  // Buzzer
+  pinMode(BUZZER, OUTPUT);
+  noTone(BUZZER);
+
+  // Servo
+  servo_motor.attach(SERVO_PIN);
+  servo_motor.write(0);
+
+  Serial.begin(9600);
+  delay(1500);
+  lcd.clear();
+}
+
+
+void loop() {
+
+  // ---- MEDIR OS 3 SENSORES ----
+  long d1 = medirDistancia(TRIG1, ECHO1);
+  long d2 = medirDistancia(TRIG2, ECHO2);
+  long d3 = medirDistancia(TRIG3, ECHO3);
+
+  // ---- Contar quantos produtos estão presentes ----
+  int produtos = 0;
+
+  if (d1 <= 100) produtos++;
+  if (d2 <= 100) produtos++;
+  if (d3 <= 100) produtos++;
+
+  // Debug no serial
+  Serial.print("S1: "); Serial.print(d1);
+  Serial.print(" | S2: "); Serial.print(d2);
+  Serial.print(" | S3: "); Serial.print(d3);
+  Serial.print(" -> Produtos: "); Serial.println(produtos);
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+
+  // --------- AÇÕES ---------
+  if (produtos == 0) {
+    // ESTOQUE VAZIO
+    lcd.print("Estoque vazio!");
+    lcd.setCursor(0, 1);
+    lcd.print("Repor produtos");
+
+    // Buzzer
+    tone(BUZZER, 1000);
+    delay(200);
+    noTone(BUZZER);
+    delay(200);
+
+    // Servo sobe
+    servo_motor.write(90);
+
+  } 
+  else if (produtos == 1) {
+    // ESTOQUE BAIXO
+    lcd.print("Estoque baixo!");
+    lcd.setCursor(0, 1);
+    lcd.print("Qtd: 1");
+
+    noTone(BUZZER);
+    servo_motor.write(0);
+
+  } 
+  else {
+    // ESTOQUE NORMAL
+    lcd.print("Produtos: ");
+    lcd.print(produtos);
+
+    noTone(BUZZER);
+    servo_motor.write(0);
+  }
+
+  delay(400);
+}
